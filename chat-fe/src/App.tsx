@@ -6,7 +6,6 @@ const App: React.FC = () => {
   return (
     <Router>
       <Routes>
-        {/* Example URL: /chat/senderId/receiverId */}
         <Route path="/chat/:senderId/:receiverId" element={<ChatComponent />} />
       </Routes>
     </Router>
