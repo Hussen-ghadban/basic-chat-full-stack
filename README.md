@@ -4,10 +4,10 @@ This is a simple real-time chat application built using Express.js and Socket.IO
 
 ## Tech Stack
 
-- **Frontend:** React + TypeScript + Vite  
-- **Backend:** Express.js + TypeScript + Socket.IO  
-- **Database:** Prisma (PostgreSQL)  
-- **Package Manager:** Yarn  
+- **Frontend:** React + TypeScript + Vite
+- **Backend:** Express.js + TypeScript + Socket.IO
+- **Database:** Prisma (PostgreSQL)
+- **Package Manager:** Yarn
 
 ## Getting Started
 
@@ -32,6 +32,32 @@ yarn
 ```
 cd ../chat-fe
 yarn
+```
+
+## 3. Set Up the Database
+
+### Configure the `.env` file in the `chat-be/` directory:
+
+Create a `.env` file and add the following:
+
+```
+DB_HOST="localhost"
+DB_DATABASE="{databse-name}"
+DB_USERNAME="{databas-ename}"
+DB_PASSWORD="{database-password}"
+DB_PORT=5432
+DATABASE_URL="postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?schema=public"
+```
+
+## migrate the database:
+
+```
+npx prisma migrate dev
+
+This will apply the existing migrations and set up your local database.
+
+Make sure your `.env` file contains the correct `DATABASE_URL`, and that your PostgreSQL instance is running.
+
 ```
 
 ## Create Test Users
@@ -86,7 +112,7 @@ http://localhost:5173/chat/<receiver_id>/<sender_id>
 
 ### Example:
 
-- Tab 1: http://localhost:5173/chat/cmdg5g9up0000weqkj6v41ikk/cmdg7t0s30000we2kqggh4zit  
+- Tab 1: http://localhost:5173/chat/cmdg5g9up0000weqkj6v41ikk/cmdg7t0s30000we2kqggh4zit
 - Tab 2: http://localhost:5173/chat/cmdg7t0s30000we2kqggh4zit/cmdg5g9up0000weqkj6v41ikk
 
 Now you can chat and see messages delivered in real time!
