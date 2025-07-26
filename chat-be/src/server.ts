@@ -33,7 +33,7 @@ io.on("connection", (socket) => {
 // REST endpoint to send a message
 app.post("/messages", async (req, res) => {
   try {
-    const { senderId, receiverId, content } = req.body;
+    const { senderId, receiverId, content, senderEncryptedKey,receiverEncryptedKey} = req.body;
 
     // Validate users exist
     const [senderExists, receiverExists] = await Promise.all([
@@ -46,9 +46,15 @@ app.post("/messages", async (req, res) => {
     }
 
     // Save message
-    const message = await prisma.message.create({
-      data: { senderId, receiverId, content },
-    });
+  const message = await prisma.message.create({
+    data: {
+      senderId,
+      receiverId,
+      content,
+      senderEncryptedKey,
+      receiverEncryptedKey,
+    },
+  });
 
     // Emit message to the receiver (real-time)
     io.to(receiverId).emit("receive_message", message);

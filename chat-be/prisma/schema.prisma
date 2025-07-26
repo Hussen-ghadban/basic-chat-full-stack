@@ -21,11 +21,13 @@ model User {
 }
 
 model Message {
-  id         String   @id @default(cuid())
-  senderId   String
-  receiverId String
-  content    String // Encrypted message (e.g., base64)
-  createdAt  DateTime @default(now())
+  id                  String   @id @default(cuid())
+  senderId            String
+  receiverId          String
+  content             String   // AES-encrypted content (e.g. base64 or hex)
+  senderEncryptedKey  String   // AES key encrypted with sender’s public key
+  receiverEncryptedKey String  // AES key encrypted with receiver’s public key
+  createdAt           DateTime @default(now())
 
   sender   User @relation("SentMessages", fields: [senderId], references: [id])
   receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])

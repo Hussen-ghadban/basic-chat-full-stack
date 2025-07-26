@@ -2,6 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import axios from "axios";
+import {
+ generateAESKey,
+ encryptWithAES,
+ encryptAESKeyWithRSA,
+ base64ToArrayBuffer,
+ isValidBase64,
+ cleanBase64,
+} from "../utils/encryption";
+import { decryptAESKeyWithRSA, decryptWithAES } from "../utils/encryption";
 
 const socket: Socket = io("http://localhost:5000");
 
@@ -11,6 +20,8 @@ interface Message {
   receiverId: string;
   content: string;
   createdAt: string;
+  senderEncryptedKey?: string;
+  receiverEncryptedKey?: string;
 }
 
 const ChatComponent: React.FC = () => {
@@ -32,7 +43,7 @@ useEffect(() => {
       const decrypted = await Promise.all(
         res.data.map(async (msg) => ({
           ...msg,
-          content: await decryptMessage(msg.content),
+          content: await decryptMessage(msg), // Pass the entire message object
         }))
       );
       setMessages(decrypted);
@@ -43,7 +54,7 @@ useEffect(() => {
   // Listen for new messages
 useEffect(() => {
   socket.on("receive_message", async (message: Message) => {
-    const decryptedContent = await decryptMessage(message.content);
+    const decryptedContent = await decryptMessage(message); // Pass the entire message object
     setMessages((prev) => [...prev, { ...message, content: decryptedContent }]);
   });
 
@@ -52,73 +63,159 @@ useEffect(() => {
   };
 }, []);
 
-// Decrypt helper
-const decryptMessage = async (base64: string): Promise<string> => {
+// Fixed decrypt helper - now accepts Message object
+const decryptMessage = async (msg: Message): Promise<string> => {
   const privateKeyBase64 = localStorage.getItem("privateKey");
-  console.log("Private Key in storage:", privateKeyBase64?.slice(0, 50)); // Debug
-
   if (!privateKeyBase64) return "[No private key found]";
 
-  const privateKeyBuffer = Uint8Array.from(atob(privateKeyBase64), c => c.charCodeAt(0)).buffer;
-  const privateKey = await window.crypto.subtle.importKey(
-    "pkcs8",
-    privateKeyBuffer,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    true,
-    ["decrypt"]
-  );
+  if (!isValidBase64(privateKeyBase64)) {
+    console.error("Invalid private key format in localStorage");
+    return "[Corrupted private key]";
+  }
 
-  const encryptedBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
   try {
-    const decryptedBuffer = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKey, encryptedBuffer);
-    return new TextDecoder().decode(decryptedBuffer);
-  } catch (err) {
+    const privateKeyBuffer = Uint8Array.from(atob(privateKeyBase64), c => c.charCodeAt(0)).buffer;
+    const privateKey = await window.crypto.subtle.importKey(
+      "pkcs8",
+      privateKeyBuffer,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      true,
+      ["decrypt"]
+    );
+
+    const encryptedKey = senderId === msg.senderId
+      ? msg.senderEncryptedKey
+      : msg.receiverEncryptedKey;
+
+    if (!encryptedKey) {
+      return "[No encrypted key found]";
+    }
+
+    if (!isValidBase64(encryptedKey)) {
+      console.error("Invalid encrypted key format");
+      return "[Corrupted encrypted key]";
+    }
+
+    const aesKey = await decryptAESKeyWithRSA(encryptedKey, privateKey);
+    const [iv, ciphertext] = msg.content.split(":");
+    
+    if (!iv || !ciphertext) {
+      return "[Invalid message format]";
+    }
+    
+    if (!isValidBase64(iv) || !isValidBase64(ciphertext)) {
+      console.error("Invalid message content format");
+      return "[Corrupted message content]";
+    }
+    
+    return await decryptWithAES(aesKey, ciphertext, iv);
+  } catch (e) {
+    console.error("Decryption error:", e);
     return "[Failed to decrypt]";
   }
 };
 
-  // Send message using REST
-  const sendMessage = async () => {
-    if (newMessage.trim() === "") return;
+const sendMessage = async () => {
+  if (!newMessage.trim()) return;
 
-    try {
-      const { data: receiver } = await axios.get(`http://localhost:5000/auth/users/${receiverId}`);
-      // console.log("Receiver Public Key:", receiver.data.publicKey);
-    const publicKeyBase64 = receiver.data.publicKey;
- // 2. Decode base64 -> ArrayBuffer -> CryptoKey
-    const publicKeyBuffer = Uint8Array.from(atob(publicKeyBase64), c => c.charCodeAt(0)).buffer;
-    const publicKey = await window.crypto.subtle.importKey(
-      "spki",
-      publicKeyBuffer,
-      { name: "RSA-OAEP", hash: "SHA-256" },
-      true,
-      ["encrypt"]
-    );
+  try {
+    const senderPublicKeyBase64 = localStorage.getItem("publicKey");
+    const senderPrivateKeyBase64 = localStorage.getItem("privateKey");
 
-    // 3. Encrypt the message
-    const encodedMessage = new TextEncoder().encode(newMessage);
-    const encryptedBuffer = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, encodedMessage);
-    const encryptedBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
-
-
-
-
-const response = await axios.post<Message>("http://localhost:5000/messages", {
-  senderId,
-  receiverId,
-  content: encryptedBase64,
-});
-
-// ✅ Decrypt message locally before adding to state
-const decryptedContent = await decryptMessage(encryptedBase64);
-const decryptedMessage = { ...response.data, content: decryptedContent };
-setMessages((prev) => [...prev, decryptedMessage]);
-      setNewMessage("");
-      
-    } catch (err) {
-      console.error("Failed to send message:", err);
+    if (!senderPublicKeyBase64 || !senderPrivateKeyBase64) {
+      console.error("Missing sender keys");
+      return;
     }
-  };
+
+    // Validate base64 strings before using them
+    if (!isValidBase64(senderPublicKeyBase64)) {
+      console.error("Invalid sender public key format");
+      alert("Your public key is corrupted. Please sign up again.");
+      return;
+    }
+
+    const { data: receiver } = await axios.get(`http://localhost:5000/auth/users/${receiverId}`);
+    console.log("tftyf",receiver.data.publicKey)
+    const receiverPublicKeyBase64 = receiver.data.publicKey;
+
+    console.log("Receiver public key:", receiverPublicKeyBase64);
+    console.log("Receiver public key length:", receiverPublicKeyBase64?.length);
+    console.log("Receiver public key type:", typeof receiverPublicKeyBase64);
+
+    if (!receiverPublicKeyBase64) {
+      console.error("No receiver public key found");
+      alert("Receiver has no public key. They need to sign up again.");
+      return;
+    }
+
+    // Try to clean and validate the receiver's public key
+    let cleanedReceiverKey;
+    try {
+      cleanedReceiverKey = cleanBase64(receiverPublicKeyBase64);
+      console.log("Cleaned receiver key length:", cleanedReceiverKey.length);
+    } catch (error) {
+      console.error("Failed to clean receiver public key:", error);
+      alert("Receiver's public key format is invalid. They need to sign up again.");
+      return;
+    }
+
+    if (!isValidBase64(cleanedReceiverKey)) {
+      console.error("Invalid receiver public key format after cleaning");
+      alert("Receiver's public key is corrupted even after cleaning.");
+      return;
+    }
+
+    // Convert keys with better error handling
+    const importKey = async (base64: string, type: "spki" | "pkcs8") => {
+      try {
+        const keyBuffer = base64ToArrayBuffer(base64);
+        return await window.crypto.subtle.importKey(
+          type,
+          keyBuffer,
+          { name: "RSA-OAEP", hash: "SHA-256" },
+          true,
+          type === "spki" ? ["encrypt"] : ["decrypt"]
+        );
+      } catch (error) {
+        console.error(`Failed to import ${type} key:`, error);
+        throw new Error(`Invalid ${type} key format`);
+      }
+    };
+
+    console.log("Importing sender public key...");
+    const senderPublicKey = await importKey(senderPublicKeyBase64, "spki");
+    
+    console.log("Importing receiver public key...");
+    const receiverPublicKey = await importKey(cleanedReceiverKey, "spki");
+
+    // 🔐 Encrypt message using AES
+    console.log("Generating AES key...");
+    const aesKey = await generateAESKey();
+    const { iv, ciphertext } = await encryptWithAES(aesKey, newMessage);
+
+    // 🔐 Encrypt AES key for both users
+    console.log("Encrypting AES key for both users...");
+    const senderEncryptedKey = await encryptAESKeyWithRSA(aesKey, senderPublicKey);
+    const receiverEncryptedKey = await encryptAESKeyWithRSA(aesKey, receiverPublicKey);
+
+    // Send message to backend
+    console.log("Sending message to backend...");
+    const { data: savedMessage } = await axios.post("http://localhost:5000/messages", {
+      senderId,
+      receiverId,
+      content: `${iv}:${ciphertext}`,
+      senderEncryptedKey,
+      receiverEncryptedKey,
+    });
+
+    setMessages((prev) => [...prev, { ...savedMessage, content: newMessage }]);
+    setNewMessage("");
+    console.log("Message sent successfully!");
+  } catch (error) {
+    console.error("Failed to send message:", error);
+    alert(`Failed to send message: ${error}`);
+  }
+};
 
   return (
     <div className="p-4">
