@@ -1,5 +1,5 @@
 # Basic Full Stack Chat App
-
+[Click here to view `view.html` rendered as a web page]([https://yourusername.github.io/your-repo-name/view.html](https://hussen-ghadban.github.io/basic-chat-full-stack/view.html))
 This is a simple real-time chat application built using Express.js and Socket.IO for the backend, and React for the frontend. It supports basic user signup and real-time messaging between users.
 
 ## Tech Stack
