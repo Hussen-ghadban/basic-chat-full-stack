@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encryption Flow Diagram</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .step-container {
+            margin: 40px 0;
+            padding: 25px;
+            border-radius: 10px;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+        
+        .step-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .step1 { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+        .step2 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .step3 { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        .step4 { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); }
+        
+        .step-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .participants {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .user, .server {
+            flex: 1;
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 0 10px;
+            position: relative;
+        }
+        
+        .user {
+            background: rgba(255,255,255,0.9);
+            border: 2px solid #667eea;
+        }
+        
+        .server {
+            background: rgba(255,255,255,0.7);
+            border: 2px solid #764ba2;
+        }
+        
+        .user-name {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .server-name {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #764ba2;
+            margin-bottom: 10px;
+        }
+        
+        .arrow {
+            font-size: 2em;
+            color: #333;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .key-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .public-key { border-left: 4px solid #28a745; }
+        .private-key { border-left: 4px solid #dc3545; }
+        .aes-key { border-left: 4px solid #ffc107; }
+        .encrypted { border-left: 4px solid #6f42c1; }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .message-flow {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .flow-number {
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 End-to-End Encryption Flow</h1>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color public-key"></div>
+                <span>Public Key (Shareable)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color private-key"></div>
+                <span>Private Key (Secret)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color aes-key"></div>
+                <span>AES Key (Temporary)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color encrypted"></div>
+                <span>Encrypted Data</span>
+            </div>
+        </div>
+        
+        <div class="step-container step1">
+            <div class="step-title">Step 1: User Registration & Key Generation</div>
+            <div class="participants">
+                <div class="user">
+                    <div class="user-name">👩 Alice Signs Up</div>
+                    <div class="key-box public-key">🔓 Alice's Public Key<br>MIIBIjANBgkqhkiG...</div>
+                    <div class="key-box private-key">🔐 Alice's Private Key<br>MIIEvQIBADANBgkq...</div>
+                    <small>Stored in localStorage</small>
+                </div>
+                <div class="arrow">→</div>
+                <div class="server">
+                    <div class="server-name">🖥️ Server</div>
+                    <div class="key-box public-key">🔓 Alice's Public Key<br>MIIBIjANBgkqhkiG...</div>
+                    <small>Stored in database<br>(accessible to others)</small>
+                </div>
+                <div class="arrow">←</div>
+                <div class="user">
+                    <div class="user-name">👨 Bob Signs Up</div>
+                    <div class="key-box public-key">🔓 Bob's Public Key<br>MIIBIjANBgkqhkiH...</div>
+                    <div class="key-box private-key">🔐 Bob's Private Key<br>MIIEvQIBADANBgkr...</div>
+                    <small>Stored in localStorage</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="step-container step2">
+            <div class="step-title">Step 2: Alice Sends "Hello Bob!" 💬</div>
+            <div class="message-flow">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <span>Alice types "Hello Bob!" and clicks send</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <span>Fetch Bob's public key from server</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <span>Generate random AES-256 key for this message</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <span>Encrypt "Hello Bob!" with AES key → "xY9mP2nK8rL5"</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <span>Encrypt AES key with Alice's public key (for Alice to read later)</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">6</div>
+                    <span>Encrypt same AES key with Bob's public key (for Bob to read)</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">7</div>
+                    <span>Send encrypted message + both encrypted keys to server</span>
+                </div>
+            </div>
+            
+            <div class="participants">
+                <div class="user">
+                    <div class="user-name">👩 Alice</div>
+                    <div class="key-box aes-key">🔑 Generates AES Key<br>[174, 201, 95, 123...]</div>
+                    <div class="key-box encrypted">📝 Encrypted Message<br>"k7J2n8Qm5tPx:xY9mP2nK8rL5"</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="server">
+                    <div class="server-name">🖥️ Server Stores</div>
+                    <div class="key-box encrypted">📦 content: "k7J2n8Qm5tPx:xY9mP2nK8rL5"</div>
+                    <div class="key-box encrypted">🔐 senderKey: "kL9xM2vN8qR5..."</div>
+                    <div class="key-box encrypted">🔐 receiverKey: "nP7wQ3yZ9tS6..."</div>
+                    <small>❌ Server cannot read "Hello Bob!"</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="step-container step3">
+            <div class="step-title">Step 3: Bob Receives & Decrypts Message 📱</div>
+            <div class="message-flow">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <span>Bob receives encrypted message via WebSocket</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <span>Bob gets his private key from localStorage</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <span>Bob decrypts the AES key using his private key</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <span>Bob decrypts "xY9mP2nK8rL5" with AES key → "Hello Bob!"</span>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <span>Bob sees the original message! ✅</span>
+                </div>
+            </div>
+            
+            <div class="participants">
+                <div class="server">
+                    <div class="server-name">🖥️ Server Forwards</div>
+                    <div class="key-box encrypted">📦 Encrypted Data</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="user">
+                    <div class="user-name">👨 Bob</div>
+                    <div class="key-box private-key">🔐 Uses Private Key</div>
+                    <div class="key-box aes-key">🔑 Recovers AES Key</div>
+                    <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 10px; padding: 15px; margin: 10px 0;">
+                        <strong>✅ Decrypted Message:</strong><br>
+                        "Hello Bob!"
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="step-container step4">
+            <div class="step-title">Step 4: Alice Views Her Message History 📜</div>
+            <div class="participants">
+                <div class="user">
+                    <div class="user-name">👩 Alice Opens Chat</div>
+                    <div class="key-box private-key">🔐 Uses Her Private Key</div>
+                    <div class="key-box encrypted">🔓 Decrypts senderEncryptedKey</div>
+                    <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 10px; padding: 15px; margin: 10px 0;">
+                        <strong>✅ Alice Sees:</strong><br>
+                        "Hello Bob!"
+                    </div>
+                </div>
+                <div class="arrow">←</div>
+                <div class="server">
+                    <div class="server-name">🖥️ Server</div>
+                    <div class="key-box encrypted">📦 Returns Same Encrypted Data</div>
+                    <small>Server still can't read it!</small>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; margin-top: 40px; text-align: center;">
+            <h2 style="margin: 0 0 20px 0;">🔒 Security Achieved!</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                    <strong>✅ End-to-End Encryption</strong><br>
+                    Only Alice and Bob can read messages
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                    <strong>✅ Perfect Forward Secrecy</strong><br>
+                    Each message uses a unique key
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                    <strong>✅ Zero Server Knowledge</strong><br>
+                    Server cannot read any messages
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                    <strong>✅ Self-Recovery</strong><br>
+                    Users can read their own sent messages
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
