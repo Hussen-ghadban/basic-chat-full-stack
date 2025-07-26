@@ -14,7 +14,8 @@ interface Message {
 }
 
 const ChatComponent: React.FC = () => {
-  const { senderId, receiverId } = useParams<{ senderId: string; receiverId: string }>();
+  const { receiverId } = useParams<{receiverId: string }>();
+  const senderId=(localStorage.getItem("userId"));
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
@@ -24,36 +25,96 @@ const ChatComponent: React.FC = () => {
   }, [senderId]);
 
   // Fetch chat history on load
-  useEffect(() => {
-    axios
-      .get<Message[]>(`http://localhost:5000/messages/${senderId}/${receiverId}`)
-      .then((res) => setMessages(res.data))
-      .catch((err) => console.error("Failed to fetch messages:", err));
-  }, [senderId, receiverId]);
+useEffect(() => {
+  axios
+    .get<Message[]>(`http://localhost:5000/messages/${senderId}/${receiverId}`)
+    .then(async (res) => {
+      const decrypted = await Promise.all(
+        res.data.map(async (msg) => ({
+          ...msg,
+          content: await decryptMessage(msg.content),
+        }))
+      );
+      setMessages(decrypted);
+    })
+    .catch((err) => console.error("Failed to fetch messages:", err));
+}, [senderId, receiverId]);
 
   // Listen for new messages
-  useEffect(() => {
-    socket.on("receive_message", (message: Message) => {
-      setMessages((prev) => [...prev, message]);
-    });
+useEffect(() => {
+  socket.on("receive_message", async (message: Message) => {
+    const decryptedContent = await decryptMessage(message.content);
+    setMessages((prev) => [...prev, { ...message, content: decryptedContent }]);
+  });
 
-    return () => {
-      socket.off("receive_message");
-    };
-  }, []);
+  return () => {
+    socket.off("receive_message");
+  };
+}, []);
+
+// Decrypt helper
+const decryptMessage = async (base64: string): Promise<string> => {
+  const privateKeyBase64 = localStorage.getItem("privateKey");
+  console.log("Private Key in storage:", privateKeyBase64?.slice(0, 50)); // Debug
+
+  if (!privateKeyBase64) return "[No private key found]";
+
+  const privateKeyBuffer = Uint8Array.from(atob(privateKeyBase64), c => c.charCodeAt(0)).buffer;
+  const privateKey = await window.crypto.subtle.importKey(
+    "pkcs8",
+    privateKeyBuffer,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true,
+    ["decrypt"]
+  );
+
+  const encryptedBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
+  try {
+    const decryptedBuffer = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKey, encryptedBuffer);
+    return new TextDecoder().decode(decryptedBuffer);
+  } catch (err) {
+    return "[Failed to decrypt]";
+  }
+};
 
   // Send message using REST
   const sendMessage = async () => {
     if (newMessage.trim() === "") return;
 
     try {
-      const response = await axios.post<Message>("http://localhost:5000/messages", {
-        senderId,
-        receiverId,
-        content: newMessage,
-      });
-      setMessages((prev) => [...prev, response.data]); // Add sent message
+      const { data: receiver } = await axios.get(`http://localhost:5000/auth/users/${receiverId}`);
+      // console.log("Receiver Public Key:", receiver.data.publicKey);
+    const publicKeyBase64 = receiver.data.publicKey;
+ // 2. Decode base64 -> ArrayBuffer -> CryptoKey
+    const publicKeyBuffer = Uint8Array.from(atob(publicKeyBase64), c => c.charCodeAt(0)).buffer;
+    const publicKey = await window.crypto.subtle.importKey(
+      "spki",
+      publicKeyBuffer,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      true,
+      ["encrypt"]
+    );
+
+    // 3. Encrypt the message
+    const encodedMessage = new TextEncoder().encode(newMessage);
+    const encryptedBuffer = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, encodedMessage);
+    const encryptedBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
+
+
+
+
+const response = await axios.post<Message>("http://localhost:5000/messages", {
+  senderId,
+  receiverId,
+  content: encryptedBase64,
+});
+
+// ✅ Decrypt message locally before adding to state
+const decryptedContent = await decryptMessage(encryptedBase64);
+const decryptedMessage = { ...response.data, content: decryptedContent };
+setMessages((prev) => [...prev, decryptedMessage]);
       setNewMessage("");
+      
     } catch (err) {
       console.error("Failed to send message:", err);
     }

@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
-export async function signup(name: string, email: string, password: string) {
+export async function signup(name: string, email: string, password: string,publicKey:string) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error("User already exists");
 
@@ -14,6 +14,7 @@ export async function signup(name: string, email: string, password: string) {
       name,
       email,
       password: hashedPassword,
+      publicKey,
     },
   });
 }
